@@ -1,32 +1,87 @@
 version: '3'
+
 services:
-  api:
-    image: makinhs/rest-api-tutorial
-    build: .
-    networks:
-      - backend
-    ports:
-      - "3600:3600"
-    depends_on:
-      - mongo
 
   mongo:
-    image: mongo
+    image: mongo:latest
+    hostname: mongo
+    container_name: mongo
     volumes:
-      - ./data:/data/db
-    networks:
-      - backend
+      - dbdata:/data/db
     ports:
       - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+    networks:
+      ldap_net:
+        ipv4_address: 172.38.2.10
 
-  web-cli:
-    image: makinhs/rest-api-tutorial
+  mongo_seed:
+    image: mongo:latest
     links:
       - mongo
+    depends_on:
+      - mongo      
+    volumes:
+      - ./mongo-seed:/mongo-seed
+    command:
+      /mongo-seed/import.sh
     networks:
-      - backend
-    command: sh
+      ldap_net:
+        ipv4_address: 172.38.2.11
+
+  # api:
+  #   image: andriykalashnykov/rest-api-tutorial
+  #   hostname: api
+  #   container_name: api
+  #   build: .
+  #   ports:
+  #     - "80:80"
+  #   links:
+  #     - mongo
+  #   depends_on:
+  #     - mongo
+  #   networks:
+  #     ldap_net:
+  #       ipv4_address: 172.38.2.12
+
+  # web-cli:
+  #   image: andriykalashnykov/rest-api-tutorial
+  #   hostname: web-cli
+  #   container_name: web-cli
+  #   links:
+  #     - mongo
+  #   depends_on:
+  #     - mongo
+  #   command: sh
+  #   networks:
+  #     ldap_net:
+  #       ipv4_address: 172.38.2.13
+
+volumes:
+  dbdata:
 
 networks:
-  backend:
-    driver: bridge
+  ldap_net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.38.0.0/16
+
+# Enter the Container w/ Bash
+# docker-compose exec --user root mongo /bin/bash
+
+# Enter the Mongo Shell
+# docker-compose exec mongo mongo -u root -p password --authenticationDatabase=admin 
+
+# While in the shell, run the following
+
+# use admin;
+# db.auth("root", "password");
+# use myDb;
+# db.createUser({user: "root", pwd: "password", roles:[{role: "readWrite" , db:"myDb"}]});
+
+# remove persistent volume `rest-api-tutorial_dbdata`
+# docker-compose down -v
+# docker volume ls
